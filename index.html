@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>欠交作业查询</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --paper:#f6f1e7;
+    --ink:#2b2621;
+    --ink-soft:#6b6259;
+    --stamp-red:#b3412c;
+    --stamp-red-dark:#8f3123;
+    --ok-green:#3f6b4f;
+    --line:#d8cdb8;
+    --card:#fffdf8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(0,0,0,0.035) 1px, transparent 0);
+    background-size: 22px 22px;
+    color:var(--ink);
+    font-family: "Noto Serif SC","Songti SC","PingFang SC","Microsoft YaHei",serif;
+    min-height:100vh;
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:36px 20px 80px;}
+
+  header{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    border-bottom:3px double var(--ink);
+    padding-bottom:16px;
+    margin-bottom:28px;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  h1{
+    font-size:32px;
+    margin:0;
+    letter-spacing:2px;
+    font-weight:900;
+  }
+  h1 span{color:var(--stamp-red);}
+  .subtitle{color:var(--ink-soft);font-size:13px;margin-top:6px;letter-spacing:1px;}
+  .date{font-family:monospace;font-size:13px;color:var(--ink-soft);text-align:right;}
+
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:20px 22px;
+    margin-bottom:26px;
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.04);
+  }
+  .panel h2{
+    font-size:15px;
+    margin:0 0 12px;
+    letter-spacing:1px;
+    color:var(--ink-soft);
+    font-weight:700;
+    text-transform:uppercase;
+  }
+  textarea{
+    width:100%;
+    min-height:110px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:10px 12px;
+    font-family:monospace;
+    font-size:13px;
+    background:#fffef9;
+    resize:vertical;
+  }
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:12px;}
+  input[type=file]{font-size:13px;}
+  button{
+    background:var(--ink);
+    color:var(--paper);
+    border:none;
+    padding:10px 20px;
+    border-radius:4px;
+    font-size:14px;
+    letter-spacing:1px;
+    cursor:pointer;
+    font-family:inherit;
+    font-weight:700;
+  }
+  button:hover{background:var(--stamp-red-dark);}
+  button.ghost{
+    background:transparent;
+    color:var(--ink-soft);
+    border:1px solid var(--line);
+    font-weight:400;
+  }
+  button.ghost:hover{border-color:var(--ink);color:var(--ink);background:transparent;}
+  .hint{font-size:12px;color:var(--ink-soft);margin-top:8px;line-height:1.6;}
+
+  .status{margin:6px 0 0;font-size:13px;}
+  .status.err{color:var(--stamp-red-dark);}
+  .status.ok{color:var(--ok-green);}
+
+  .stats{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-bottom:24px;
+  }
+  .stat{
+    flex:1;
+    min-width:140px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:16px 18px;
+    text-align:center;
+  }
+  .stat .num{font-size:30px;font-weight:900;line-height:1;}
+  .stat.total .num{color:var(--ink);}
+  .stat.missing .num{color:var(--stamp-red);}
+  .stat.clean .num{color:var(--ok-green);}
+  .stat .lbl{font-size:12px;color:var(--ink-soft);margin-top:6px;letter-spacing:1px;}
+
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px;}
+  select,.search{
+    border:1px solid var(--line);
+    background:var(--card);
+    padding:8px 12px;
+    border-radius:4px;
+    font-family:inherit;
+    font-size:13px;
+  }
+  .search{flex:1;min-width:160px;}
+
+  .empty-state{
+    text-align:center;
+    padding:60px 20px;
+    color:var(--ok-green);
+  }
+  .empty-state .big{font-size:52px;}
+  .empty-state .msg{font-size:18px;margin-top:10px;font-weight:700;}
+
+  .list{display:flex;flex-direction:column;gap:10px;}
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-left:5px solid var(--stamp-red);
+    border-radius:4px;
+    padding:14px 18px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:16px;
+    flex-wrap:wrap;
+    position:relative;
+  }
+  .who{display:flex;flex-direction:column;gap:2px;min-width:140px;}
+  .who .name{font-size:17px;font-weight:900;letter-spacing:1px;}
+  .who .id{font-size:12px;color:var(--ink-soft);font-family:monospace;}
+  .missing-tags{display:flex;gap:6px;flex-wrap:wrap;flex:1;justify-content:flex-end;}
+  .tag{
+    background:#fbe9e4;
+    color:var(--stamp-red-dark);
+    border:1px solid #e8c3ba;
+    font-size:12px;
+    padding:4px 10px;
+    border-radius:20px;
+    white-space:nowrap;
+  }
+  .count-badge{
+    background:var(--stamp-red);
+    color:#fff;
+    font-size:12px;
+    font-weight:700;
+    padding:3px 10px;
+    border-radius:20px;
+    white-space:nowrap;
+  }
+
+  footer{
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:12px;
+    margin-top:40px;
+    letter-spacing:1px;
+  }
+
+  @media (max-width:520px){
+    h1{font-size:24px;}
+    .missing-tags{justify-content:flex-start;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>欠<span>交</span>名单</h1>
+      <div class="subtitle">HOMEWORK TRACKER · 谁还没交作业，一目了然</div>
+    </div>
+    <div class="date" id="today"></div>
+  </header>
+
+  <div class="panel" id="autoPanel">
+    <h2>资料来源：Google Sheet（自动同步）</h2>
+    <div class="row" style="justify-content:space-between;">
+      <div class="hint" style="margin:0;" id="syncInfo">正在读取最新资料...</div>
+      <button onclick="loadFromSheet()" id="refreshBtn">↻ 刷新最新资料</button>
+    </div>
+    <div class="status" id="statusMsg"></div>
+  </div>
+
+  <div class="panel" id="inputPanel" style="display:none;">
+    <h2>手动导入（备用）</h2>
+    <div class="hint">
+      如果自动抓取失败，可以在 Google Sheet 里全选表格（含标题列）→ 复制 → 贴到下面框内，或直接上传导出的 CSV 档案。<br>
+      表格规则：第 1 栏=学号，第 2 栏=姓名，其余每一栏是一份作业，格子内容为 ✅ / ❌（或 TRUE/FALSE、是/否、Y/N 皆可辨识）。
+    </div>
+    <div class="row">
+      <textarea id="pasteArea" placeholder="在这里贴上从 Google Sheet 复制的表格内容..."></textarea>
+    </div>
+    <div class="row">
+      <input type="file" id="fileInput" accept=".csv,.tsv,.txt">
+      <button onclick="loadFromPaste()">解析贴上的资料</button>
+      <button class="ghost" onclick="loadSample()">看范例</button>
+      <button class="ghost" onclick="toggleManual()">收起手动区块</button>
+    </div>
+  </div>
+
+  <div style="margin-bottom:20px;" id="manualToggleRow">
+    <button class="ghost" onclick="toggleManual()">改用手动贴上资料 ▾</button>
+  </div>
+
+  <div id="resultsArea" style="display:none;">
+
+    <div class="stats">
+      <div class="stat total"><div class="num" id="statTotal">0</div><div class="lbl">全班人数</div></div>
+      <div class="stat missing"><div class="num" id="statMissing">0</div><div class="lbl">有欠交</div></div>
+      <div class="stat clean"><div class="num" id="statClean">0</div><div class="lbl">全部交齐</div></div>
+    </div>
+
+    <div class="controls">
+      <input class="search" id="searchBox" placeholder="搜寻姓名或学号..." oninput="render()">
+      <select id="assignFilter" onchange="render()">
+        <option value="">— 依作业筛选 —</option>
+      </select>
+      <select id="sortBy" onchange="render()">
+        <option value="count">依欠交数量排序</option>
+        <option value="name">依姓名排序</option>
+        <option value="id">依学号排序</option>
+      </select>
+    </div>
+
+    <div class="list" id="list"></div>
+  </div>
+
+</div>
+<footer>欠交名单 · 只显示需要提醒的人</footer>
+
+<script>
+document.getElementById('today').textContent = new Date().toLocaleDateString('zh-TW', {year:'numeric',month:'2-digit',day:'2-digit'});
+
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSq3d_gGcqriERDsZ6PqA4rywIgqw4I6Irt8t18Znd9it1KLcUegNilD8P3T0XA0SaTATECA4L4X2PZ/pub?gid=841459666&single=true&output=csv';
+
+let students = []; // {id, name, missing: [colNames], total: n}
+let assignmentCols = [];
+
+function toggleManual(){
+  const panel = document.getElementById('inputPanel');
+  const row = document.getElementById('manualToggleRow');
+  const showing = panel.style.display !== 'none';
+  panel.style.display = showing ? 'none' : 'block';
+  row.style.display = showing ? 'block' : 'none';
+}
+
+function loadFromSheet(){
+  const info = document.getElementById('syncInfo');
+  const btn = document.getElementById('refreshBtn');
+  info.textContent = '正在读取最新资料...';
+  setStatus('','');
+  btn.disabled = true;
+
+  fetch(SHEET_CSV_URL + '&cachebust=' + Date.now())
+    .then(res => {
+      if(!res.ok) throw new Error('网络请求失败 (' + res.status + ')');
+      return res.text();
+    })
+    .then(text => {
+      const parsed = Papa.parse(text.trim(), {delimiter: ','});
+      students = parseRows(parsed.data);
+      const now = new Date().toLocaleTimeString('zh-TW');
+      info.textContent = `✅ 已从 Google Sheet 同步资料，共 ${students.length} 位学生（更新时间 ${now}）`;
+      populateFilter();
+      render();
+      document.getElementById('resultsArea').style.display = 'block';
+    })
+    .catch(err => {
+      info.textContent = '⚠️ 自动抓取失败：' + err.message + '。请改用下方手动贴上资料。';
+      document.getElementById('inputPanel').style.display = 'block';
+      document.getElementById('manualToggleRow').style.display = 'none';
+    })
+    .finally(() => { btn.disabled = false; });
+}
+
+window.addEventListener('DOMContentLoaded', loadFromSheet);
+
+function isDone(v){
+  if(v===undefined || v===null) return false;
+  const s = String(v).trim().toLowerCase();
+  if(!s) return false;
+  const doneSet = ['✅','✓','true','yes','y','是','有','1','对','✔','✔️'];
+  const noSet = ['❌','✗','false','no','n','否','没有','0','x','✘','没交','缺'];
+  if(doneSet.includes(s)) return true;
+  if(noSet.includes(s)) return false;
+  // fallback: contains check mark char
+  if(s.includes('✅')||s.includes('✓')||s.includes('✔')) return true;
+  if(s.includes('❌')||s.includes('✗')||s.includes('✘')) return false;
+  return true; // unknown -> assume done, don't false-flag
+}
+
+function parseRows(rows){
+  if(rows.length < 2){ throw new Error('资料不足，至少需要标题列 + 一位学生'); }
+  const header = rows[0].map(h => (h||'').toString().trim());
+  if(header.length < 3){ throw new Error('侦测不到作业栏位，请确认第 1 栏学号、第 2 栏姓名、其余为作业'); }
+
+  assignmentCols = header.slice(2);
+  const list = [];
+
+  for(let i=1;i<rows.length;i++){
+    const r = rows[i];
+    if(!r || r.every(c => !c || !String(c).trim())) continue;
+    const id = (r[0]||'').toString().trim();
+    const name = (r[1]||'').toString().trim();
+    if(!id && !name) continue;
+
+    const missing = [];
+    for(let c=0;c<assignmentCols.length;c++){
+      const val = r[2+c];
+      if(!isDone(val)){
+        missing.push(assignmentCols[c]);
+      }
+    }
+    list.push({id, name, missing, total: assignmentCols.length});
+  }
+  return list;
+}
+
+function setStatus(msg, type){
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = 'status ' + (type||'');
+}
+
+function loadFromPaste(){
+  const raw = document.getElementById('pasteArea').value;
+  if(!raw.trim()){ setStatus('请先贴上资料，或上传 CSV 档案。','err'); return; }
+  try{
+    const delimiter = raw.includes('\t') ? '\t' : ',';
+    const parsed = Papa.parse(raw.trim(), {delimiter});
+    students = parseRows(parsed.data);
+    setStatus(`成功读取 ${students.length} 位学生的资料。`,'ok');
+    populateFilter();
+    render();
+    document.getElementById('resultsArea').style.display = 'block';
+  }catch(e){
+    setStatus('解析失败：' + e.message, 'err');
+  }
+}
+
+document.getElementById('fileInput').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    const text = evt.target.result;
+    Papa.parse(text, {
+      complete: function(res){
+        try{
+          students = parseRows(res.data);
+          setStatus(`成功读取 ${students.length} 位学生的资料（来自档案 ${file.name}）。`,'ok');
+          populateFilter();
+          render();
+          document.getElementById('resultsArea').style.display = 'block';
+        }catch(err){
+          setStatus('解析失败：' + err.message, 'err');
+        }
+      }
+    });
+  };
+  reader.readAsText(file);
+});
+
+function populateFilter(){
+  const sel = document.getElementById('assignFilter');
+  sel.innerHTML = '<option value="">— 依作业筛选 —</option>' +
+    assignmentCols.map(a => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function render(){
+  const search = document.getElementById('searchBox').value.trim().toLowerCase();
+  const assignFilter = document.getElementById('assignFilter').value;
+  const sortBy = document.getElementById('sortBy').value;
+
+  const total = students.length;
+  let missingList = students.filter(s => s.missing.length > 0);
+  const cleanCount = total - missingList.length;
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statMissing').textContent = missingList.length;
+  document.getElementById('statClean').textContent = cleanCount;
+
+  let filtered = missingList.filter(s => {
+    if(search){
+      const hay = (s.name + s.id).toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    if(assignFilter && !s.missing.includes(assignFilter)) return false;
+    return true;
+  });
+
+  if(sortBy === 'count'){
+    filtered.sort((a,b) => b.missing.length - a.missing.length);
+  } else if(sortBy === 'name'){
+    filtered.sort((a,b) => a.name.localeCompare(b.name,'zh-Hans'));
+  } else if(sortBy === 'id'){
+    filtered.sort((a,b) => a.id.localeCompare(b.id));
+  }
+
+  const listEl = document.getElementById('list');
+
+  if(missingList.length === 0){
+    listEl.innerHTML = `<div class="empty-state"><div class="big">🎉</div><div class="msg">全班作业都交齐了！</div></div>`;
+    return;
+  }
+
+  if(filtered.length === 0){
+    listEl.innerHTML = `<div class="empty-state" style="color:var(--ink-soft)"><div class="big">🔍</div><div class="msg">没有符合条件的学生</div></div>`;
+    return;
+  }
+
+  listEl.innerHTML = filtered.map(s => `
+    <div class="card">
+      <div class="who">
+        <div class="name">${escapeHtml(s.name)}</div>
+        <div class="id">${escapeHtml(s.id)}</div>
+      </div>
+      <div class="missing-tags">
+        ${s.missing.map(m => `<span class="tag">${escapeHtml(m)}</span>`).join('')}
+        <span class="count-badge">欠 ${s.missing.length} 项</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function loadSample(){
+  const sample = `学号\t姓名\tch6 q1q2\tch6 q5\tch6 q6\tch6 选择\tch7 q3\tch7 q4\tch7 q5\tch7 q6
+23064\t叶沁琁\t✅\t✅\t✅\t✅\t✅\t✅\t❌\t✅
+23092\t周妤辰\t✅\t✅\t✅\t✅\t✅\t✅\t❌\t✅
+23021\t林威兴\t✅\t❌\t✅\t✅\t✅\t✅\t❌\t✅
+23010\t林子轩\t✅\t✅\t❌\t✅\t✅\t✅\t❌\t✅
+23112\t林展恒\t✅\t✅\t✅\t✅\t✅\t✅\t❌\t✅
+23259\t林正哲\t✅\t✅\t✅\t✅\t✅\t❌\t❌\t✅`;
+  document.getElementById('pasteArea').value = sample;
+  loadFromPaste();
+}
+</script>
+</body>
+</html>
