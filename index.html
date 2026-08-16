@@ -1,635 +1,314 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hans">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#f3f0ea">
+<meta name="theme-color" content="#f7f6f2">
 <title>欠交作业名单</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <style>
   :root{
-    --bg:#f3f0ea;
-    --paper:#fffdfa;
-    --paper-2:#faf7f2;
-    --ink:#1f2421;
-    --muted:#747970;
-    --muted-2:#9a9d96;
-    --line:#ddd8cf;
-    --line-strong:#cbc4b8;
-    --danger:#b64230;
-    --danger-dark:#7f2a20;
-    --danger-soft:#f8eae6;
-    --danger-soft-2:#f1d5ce;
-    --ok:#3f7258;
-    --ok-soft:#eaf3ed;
-    --shadow:0 10px 30px rgba(48,42,35,.065);
-    --shadow-soft:0 5px 18px rgba(48,42,35,.045);
-    --radius:18px;
+    --bg:#f7f6f2;
+    --paper:#ffffff;
+    --ink:#20211f;
+    --muted:#777971;
+    --line:#deddd7;
+    --danger:#b74432;
+    --danger-deep:#8e3125;
+    --danger-soft:#fbefec;
+    --ok:#46735a;
+    --ok-soft:#eef5f0;
   }
 
   *{box-sizing:border-box;}
-  html{scroll-behavior:smooth;}
+  html{-webkit-text-size-adjust:100%;}
   body{
     margin:0;
     min-height:100vh;
+    background:var(--bg);
     color:var(--ink);
-    background:
-      radial-gradient(circle at 8% -4%, rgba(182,66,48,.055), transparent 26%),
-      radial-gradient(circle at 92% 7%, rgba(63,114,88,.035), transparent 22%),
-      var(--bg);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
-    text-rendering:optimizeLegibility;
   }
 
   button,input{font:inherit;}
-  button{color:inherit;}
 
-  .app{
-    width:min(100%, 820px);
+  .page{
+    width:min(100%,760px);
     margin:0 auto;
-    padding:18px 14px calc(44px + env(safe-area-inset-bottom));
+    padding:28px 18px calc(48px + env(safe-area-inset-bottom));
   }
 
-  .topline{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    color:var(--muted);
-    font-size:12px;
-    margin:2px 2px 16px;
-  }
-  .notice-mark{
-    display:inline-flex;
-    align-items:center;
-    gap:7px;
-    font-weight:800;
-    letter-spacing:.07em;
-    color:var(--danger-dark);
-  }
-  .notice-mark::before{
-    content:"";
-    width:8px;
-    height:8px;
-    border-radius:50%;
-    background:var(--danger);
-    box-shadow:0 0 0 4px rgba(182,66,48,.09);
-  }
-  .date{font-variant-numeric:tabular-nums;}
-
-  .hero{
-    padding:2px 2px 0;
-  }
-  h1{
-    margin:0;
-    font-size:clamp(34px,9vw,54px);
-    line-height:1.02;
-    letter-spacing:-.045em;
-    font-weight:950;
-  }
-  .title-accent{
-    position:relative;
-    display:inline-block;
-  }
-  .title-accent::after{
-    content:"";
-    position:absolute;
-    left:0;
-    right:0;
-    bottom:-6px;
-    height:5px;
-    border-radius:999px;
-    background:var(--danger);
-    opacity:.9;
-  }
-  .hero-copy{
-    margin:18px 0 0;
-    color:var(--muted);
-    font-size:14px;
-    line-height:1.65;
-    max-width:620px;
-  }
-
-  .loading{
-    margin-top:24px;
-    border:1px solid var(--line);
-    border-radius:var(--radius);
-    background:var(--paper);
-    padding:30px 18px;
-    text-align:center;
-    color:var(--muted);
-    box-shadow:var(--shadow-soft);
-  }
-  .loading-line{
-    width:72px;
-    height:4px;
-    overflow:hidden;
-    border-radius:999px;
-    background:#ebe6de;
-    margin:0 auto 15px;
-  }
-  .loading-line::after{
-    content:"";
-    display:block;
-    width:32px;
-    height:100%;
-    border-radius:inherit;
-    background:var(--danger);
-    animation:loading 1.1s ease-in-out infinite alternate;
-  }
-  @keyframes loading{from{transform:translateX(0)}to{transform:translateX(40px)}}
-
-  .sync-error{
-    display:none;
-    margin-top:22px;
-    border:1px solid #e7bbb1;
-    border-radius:var(--radius);
-    background:#fff8f6;
-    padding:18px;
-    color:var(--danger-dark);
-    line-height:1.6;
-    box-shadow:var(--shadow-soft);
-  }
-  .sync-error.show{display:block;}
-  .retry{
-    margin-top:13px;
-    border:0;
-    border-radius:12px;
-    padding:10px 14px;
-    background:var(--danger-dark);
-    color:#fff;
-    font-weight:850;
-    cursor:pointer;
-  }
-
-  .overview{
-    margin-top:24px;
-    position:relative;
-    overflow:hidden;
-    background:var(--paper);
-    border:1px solid var(--line);
-    border-radius:22px;
-    box-shadow:var(--shadow);
-    padding:20px;
-  }
-  .overview::before{
-    content:"";
-    position:absolute;
-    inset:0 auto 0 0;
-    width:6px;
-    background:var(--danger);
-  }
-  .overview.all-clear::before{background:var(--ok);}
-  .overview-head{
+  header{
     display:flex;
     align-items:flex-start;
     justify-content:space-between;
-    gap:14px;
-  }
-  .overview-kicker{
-    color:var(--muted);
-    font-size:11px;
-    font-weight:850;
-    letter-spacing:.1em;
-    margin-bottom:7px;
-  }
-  .overview-main{
-    display:flex;
-    align-items:baseline;
-    gap:8px;
-    flex-wrap:wrap;
-  }
-  .overview-num{
-    font-size:48px;
-    line-height:.9;
-    font-weight:950;
-    letter-spacing:-.055em;
-    color:var(--danger);
-  }
-  .overview-text{
-    font-size:20px;
-    font-weight:900;
-    line-height:1.2;
-  }
-  .overview.all-clear .overview-num,
-  .overview.all-clear .overview-text{color:var(--ok);}
-  .overview-chip{
-    flex:none;
-    border:1px solid #ecc8c0;
-    background:var(--danger-soft);
-    color:var(--danger-dark);
-    border-radius:999px;
-    padding:7px 10px;
-    font-size:11px;
-    font-weight:900;
-    white-space:nowrap;
-  }
-  .overview.all-clear .overview-chip{
-    border-color:#c9dfd1;
-    background:var(--ok-soft);
-    color:var(--ok);
-  }
-  .overview-sub{
-    margin-top:12px;
-    color:var(--muted);
-    font-size:13px;
-    line-height:1.55;
-  }
-  .progress{
-    margin-top:16px;
-    height:7px;
-    background:#ece8e1;
-    border-radius:999px;
-    overflow:hidden;
-  }
-  .progress-bar{
-    width:0;
-    height:100%;
-    border-radius:inherit;
-    background:var(--ok);
-    transition:width .35s ease;
-  }
-  .progress-meta{
-    display:flex;
-    justify-content:space-between;
-    gap:12px;
-    margin-top:7px;
-    color:var(--muted-2);
-    font-size:11px;
+    gap:18px;
+    padding-bottom:20px;
+    border-bottom:1px solid var(--line);
   }
 
-  .search-sticky{
-    position:sticky;
-    top:0;
-    z-index:20;
-    margin:14px -4px 0;
-    padding:9px 4px;
-    background:linear-gradient(180deg,rgba(243,240,234,.96) 72%,rgba(243,240,234,0));
-    backdrop-filter:blur(8px);
-    -webkit-backdrop-filter:blur(8px);
+  h1{
+    margin:0;
+    font-size:34px;
+    line-height:1.08;
+    letter-spacing:-.04em;
+    font-weight:900;
   }
-  .search-wrap{position:relative;}
+
+  .updated{
+    flex:none;
+    margin-top:5px;
+    color:var(--muted);
+    font-size:12px;
+    line-height:1.45;
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+  }
+
+  .search-wrap{
+    position:relative;
+    margin-top:18px;
+  }
+
   .search-icon{
     position:absolute;
-    left:16px;
+    left:15px;
     top:50%;
     transform:translateY(-50%);
+    width:18px;
+    height:18px;
     color:var(--muted);
-    font-size:17px;
     pointer-events:none;
   }
+
   .search{
     width:100%;
-    min-height:54px;
-    border:1px solid var(--line-strong);
-    border-radius:16px;
-    background:rgba(255,253,250,.97);
-    padding:0 46px 0 46px;
+    height:50px;
+    padding:0 44px 0 44px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    outline:none;
+    background:var(--paper);
     color:var(--ink);
     font-size:16px;
-    outline:none;
-    box-shadow:var(--shadow-soft);
-    transition:border-color .17s ease,box-shadow .17s ease,background .17s ease;
+    transition:border-color .16s ease, box-shadow .16s ease;
   }
+
+  .search::placeholder{color:#a0a19d;}
   .search:focus{
-    border-color:#b88d83;
-    background:#fff;
-    box-shadow:0 0 0 4px rgba(182,66,48,.085),var(--shadow-soft);
+    border-color:#bd8f86;
+    box-shadow:0 0 0 3px rgba(183,68,50,.08);
   }
-  .search::placeholder{color:#9b9e98;}
-  .clear-search{
+
+  .clear{
     display:none;
     position:absolute;
-    right:9px;
     top:50%;
+    right:7px;
     transform:translateY(-50%);
     width:36px;
     height:36px;
     border:0;
-    border-radius:50%;
+    border-radius:8px;
     background:transparent;
     color:var(--muted);
     cursor:pointer;
-  }
-  .clear-search.show{display:block;}
-  .clear-search:active{background:var(--paper-2);}
-
-  .search-result{display:none;margin-top:8px;}
-  .search-result.show{display:block;}
-  .result-card{
-    border:1px solid var(--line);
-    border-radius:18px;
-    background:var(--paper);
-    box-shadow:var(--shadow-soft);
-    padding:17px;
-  }
-  .result-card.missing{
-    border-color:#e6b7ad;
-    background:linear-gradient(180deg,#fffaf8,#fffdfa 68%);
-  }
-  .result-card.clean{
-    border-color:#c9dfd1;
-    background:linear-gradient(180deg,#f4faf6,#fffdfa 68%);
-  }
-  .result-kicker{
-    color:var(--muted);
-    font-size:11px;
-    font-weight:850;
-    letter-spacing:.1em;
-  }
-  .result-head{
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:14px;
-    margin-top:9px;
-  }
-  .result-name{
-    font-size:25px;
-    line-height:1.12;
-    font-weight:950;
-    letter-spacing:-.02em;
-  }
-  .result-id{
-    margin-top:5px;
-    color:var(--muted);
-    font-size:12px;
-    font-variant-numeric:tabular-nums;
-  }
-  .result-status{
-    flex:none;
-    border-radius:999px;
-    padding:7px 10px;
-    font-size:11px;
-    font-weight:900;
-    white-space:nowrap;
-  }
-  .result-card.missing .result-status{color:var(--danger-dark);background:var(--danger-soft);}
-  .result-card.clean .result-status{color:var(--ok);background:var(--ok-soft);}
-  .result-message{
-    margin-top:14px;
-    color:var(--muted);
-    font-size:14px;
-    line-height:1.6;
-  }
-
-  .section-head{
-    display:flex;
-    align-items:flex-end;
-    justify-content:space-between;
-    gap:12px;
-    margin:28px 2px 12px;
-  }
-  .section-title-wrap{display:flex;align-items:center;gap:10px;}
-  .section-mark{
-    width:10px;
-    height:22px;
-    border-radius:999px;
-    background:var(--danger);
-  }
-  .section-title{
-    font-size:19px;
-    line-height:1;
-    font-weight:950;
-    letter-spacing:-.01em;
-  }
-  .section-note{
-    color:var(--muted);
-    font-size:11px;
-    text-align:right;
-    line-height:1.35;
-  }
-
-  .list{display:flex;flex-direction:column;gap:10px;}
-  .student-card{
-    width:100%;
-    position:relative;
-    overflow:hidden;
-    text-align:left;
-    border:1px solid var(--line);
-    border-radius:18px;
-    background:var(--paper);
-    padding:16px 16px 15px 18px;
-    box-shadow:var(--shadow-soft);
-    cursor:pointer;
-    transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease;
-  }
-  .student-card::before{
-    content:"";
-    position:absolute;
-    left:0;
-    top:0;
-    bottom:0;
-    width:5px;
-    background:var(--danger);
-  }
-  .student-card:hover{transform:translateY(-1px);box-shadow:var(--shadow);}
-  .student-card.sev-2::before{background:#9f392c;}
-  .student-card.sev-3::before{background:#70241c;}
-  .student-card.sev-3{border-color:#d9c2bc;background:linear-gradient(180deg,#fff9f7,#fffdfa);}
-  .student-top{
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:14px;
-  }
-  .student-name{
     font-size:22px;
-    line-height:1.12;
-    font-weight:950;
+    line-height:1;
+  }
+  .clear.show{display:block;}
+
+  .summary{
+    margin:23px 0 8px;
+    font-size:15px;
+    color:var(--muted);
+  }
+  .summary strong{
+    color:var(--danger-deep);
+    font-size:18px;
+    font-weight:900;
+  }
+
+  .list{
+    border-top:1px solid var(--line);
+  }
+
+  .student{
+    padding:18px 1px 19px;
+    border-bottom:1px solid var(--line);
+  }
+
+  .student-head{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:16px;
+  }
+
+  .student-name{
+    min-width:0;
+    font-size:21px;
+    line-height:1.2;
+    font-weight:850;
     letter-spacing:-.015em;
   }
+
+  .count{
+    flex:none;
+    color:var(--danger-deep);
+    font-size:14px;
+    font-weight:850;
+    white-space:nowrap;
+  }
+
   .student-id{
-    margin-top:5px;
+    margin-top:4px;
     color:var(--muted);
     font-size:12px;
     font-variant-numeric:tabular-nums;
   }
-  .count-badge{
-    flex:none;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    min-height:30px;
-    border-radius:999px;
-    border:1px solid #ecc7bf;
-    background:var(--danger-soft);
-    color:var(--danger-dark);
-    padding:5px 10px;
-    font-size:12px;
-    font-weight:950;
-    white-space:nowrap;
-  }
-  .sev-2 .count-badge{background:#f2ddd8;}
-  .sev-3 .count-badge{background:#70241c;border-color:#70241c;color:#fff;}
-  .missing-label{
-    margin-top:14px;
-    color:var(--muted-2);
-    font-size:10px;
-    font-weight:900;
-    letter-spacing:.12em;
-  }
+
   .tags{
     display:flex;
     flex-wrap:wrap;
     gap:7px;
-    margin-top:8px;
+    margin-top:12px;
   }
+
   .tag{
-    display:inline-flex;
-    align-items:center;
-    min-height:29px;
-    border-radius:10px;
-    border:1px solid #ecc9c1;
+    display:inline-block;
+    padding:5px 8px;
+    border:1px solid #edc7bf;
+    border-radius:7px;
     background:var(--danger-soft);
-    color:var(--danger-dark);
-    padding:5px 9px;
+    color:var(--danger-deep);
     font-size:13px;
-    font-weight:800;
+    font-weight:700;
     line-height:1.15;
   }
-  .detail{
+
+  .search-result{
     display:none;
-    margin-top:13px;
-    padding-top:12px;
-    border-top:1px dashed var(--line);
+    margin-top:18px;
+    padding:18px 0 2px;
+    border-top:1px solid var(--line);
+  }
+  .search-result.show{display:block;}
+
+  .result-name{
+    font-size:24px;
+    font-weight:900;
+    letter-spacing:-.02em;
+  }
+  .result-id{
+    margin-top:4px;
     color:var(--muted);
     font-size:12px;
-    line-height:1.6;
   }
-  .student-card.open .detail{display:block;}
-  .detail strong{color:var(--ink);}
-  .detail-hint{color:var(--muted-2);}
+  .result-status{
+    margin-top:16px;
+    font-size:16px;
+    font-weight:850;
+  }
+  .result-status.missing{color:var(--danger-deep);}
+  .result-status.clean{color:var(--ok);}
+  .result-tags{margin-top:10px;}
 
-  .empty-state{
-    border:1px solid #c9dfd1;
-    border-radius:20px;
-    background:var(--ok-soft);
-    padding:30px 18px;
+  .no-match{
+    color:var(--muted);
+    font-size:14px;
+  }
+
+  .all-clear{
+    margin-top:25px;
+    padding:24px 0 10px;
+    border-top:1px solid var(--line);
     text-align:center;
   }
-  .empty-check{
-    width:46px;
-    height:46px;
-    margin:0 auto 11px;
-    display:grid;
-    place-items:center;
-    border-radius:50%;
-    background:var(--ok);
-    color:#fff;
-    font-size:23px;
-    font-weight:950;
+  .all-clear-title{
+    color:var(--ok);
+    font-size:24px;
+    font-weight:900;
   }
-  .empty-title{color:var(--ok);font-size:20px;font-weight:950;}
-  .empty-sub{margin-top:6px;color:#617568;font-size:13px;}
+  .all-clear-sub{
+    margin-top:7px;
+    color:var(--muted);
+    font-size:13px;
+  }
 
-  footer{
-    margin-top:28px;
-    padding:16px 2px 4px;
+  .loading,
+  .error{
+    margin-top:24px;
+    padding:22px 0;
     border-top:1px solid var(--line);
     color:var(--muted);
+    font-size:14px;
+  }
+  .error{color:var(--danger-deep);}
+  .retry{
+    margin-top:12px;
+    border:1px solid #d9ada5;
+    border-radius:9px;
+    background:var(--paper);
+    color:var(--danger-deep);
+    padding:8px 12px;
+    font-weight:750;
+    cursor:pointer;
+  }
+
+  .sync{
+    margin-top:26px;
+    color:#a1a29d;
     font-size:11px;
-    line-height:1.55;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    flex-wrap:wrap;
-  }
-  .sync-ok{color:var(--ok);font-weight:850;}
-
-  @media (min-width:680px){
-    .app{padding:34px 24px 64px;}
-    .topline{margin-bottom:20px;}
-    .hero-copy{font-size:15px;}
-    .overview{padding:24px 26px;}
-    .overview-num{font-size:54px;}
-    .search-sticky{margin-top:16px;}
-    .student-card{padding:18px 20px 17px 22px;}
-    .student-name{font-size:23px;}
-    .tag{font-size:13px;}
+    text-align:center;
+    min-height:16px;
   }
 
-  @media (max-width:420px){
-    .app{padding-left:12px;padding-right:12px;}
-    .overview{padding:18px;}
-    .overview-chip{display:none;}
-    .section-note{max-width:110px;}
-    .student-card{padding-right:14px;}
-    .result-name{font-size:23px;}
+  @media (max-width:520px){
+    .page{padding:22px 16px calc(42px + env(safe-area-inset-bottom));}
+    header{padding-bottom:17px;}
+    h1{font-size:30px;}
+    .updated{font-size:11px;margin-top:3px;}
+    .search-wrap{margin-top:15px;}
+    .search{height:48px;font-size:15px;}
+    .summary{margin-top:20px;}
+    .student{padding:16px 1px 17px;}
+    .student-name{font-size:20px;}
+    .tag{font-size:12px;}
   }
 
-  @media (prefers-reduced-motion:reduce){
-    *{scroll-behavior:auto!important;transition:none!important;animation:none!important;}
+  @media (max-width:360px){
+    h1{font-size:27px;}
+    .student-head{gap:10px;}
+    .count{font-size:13px;}
   }
 </style>
 </head>
 <body>
-<main class="app">
-  <div class="topline">
-    <span class="notice-mark">作业公告</span>
-    <span class="date" id="today"></span>
+<main class="page">
+  <header>
+    <h1>欠交作业名单</h1>
+    <div class="updated" id="updated">读取中…</div>
+  </header>
+
+  <div class="search-wrap" id="searchWrap" hidden>
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8"></circle>
+      <path d="M16 16L20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+    </svg>
+    <input class="search" id="searchBox" type="search" autocomplete="off" placeholder="搜索姓名或学号" aria-label="搜索姓名或学号">
+    <button class="clear" id="clearBtn" type="button" aria-label="清除搜索">×</button>
   </div>
 
-  <section class="hero">
-    <h1>欠交<span class="title-accent">作业名单</span></h1>
-    <p class="hero-copy">名单会自动读取最新资料。打开页面即可查看谁仍有欠交，也可输入姓名或学号快速确认自己的状态。</p>
-  </section>
+  <section class="search-result" id="searchResult"></section>
 
-  <div id="loading" class="loading">
-    <div class="loading-line"></div>
-    正在读取最新作业资料…
+  <div id="content">
+    <div class="loading">正在读取最新资料…</div>
   </div>
 
-  <div id="syncError" class="sync-error">
-    <strong>资料暂时无法更新。</strong><br>
-    可能是网络或 Google Sheet 暂时无法连接，请稍后再试。
-    <br><button class="retry" type="button" onclick="loadFromSheet()">重新读取</button>
-  </div>
-
-  <section id="content" style="display:none;">
-    <div id="summary" class="overview">
-      <div class="overview-head">
-        <div>
-          <div class="overview-kicker">CURRENT STATUS</div>
-          <div class="overview-main">
-            <div id="summaryNum" class="overview-num">0</div>
-            <div id="summaryText" class="overview-text">人有欠交作业</div>
-          </div>
-        </div>
-        <div id="overviewChip" class="overview-chip">公开名单</div>
-      </div>
-      <div id="summarySub" class="overview-sub"></div>
-      <div class="progress" aria-hidden="true"><div id="progressBar" class="progress-bar"></div></div>
-      <div class="progress-meta"><span id="progressLeft"></span><span id="progressRight"></span></div>
-    </div>
-
-    <div class="search-sticky">
-      <div class="search-wrap">
-        <span class="search-icon" aria-hidden="true">⌕</span>
-        <input id="searchBox" class="search" type="search" inputmode="search" autocomplete="off" placeholder="输入姓名或学号，快速找自己" aria-label="输入姓名或学号查询" oninput="renderSearch()">
-        <button id="clearSearch" class="clear-search" type="button" aria-label="清除搜索" onclick="clearSearch()">✕</button>
-      </div>
-    </div>
-
-    <div id="searchResult" class="search-result" aria-live="polite"></div>
-
-    <div class="section-head">
-      <div class="section-title-wrap">
-        <span class="section-mark" aria-hidden="true"></span>
-        <div class="section-title">公开欠交名单</div>
-      </div>
-      <div id="listCount" class="section-note"></div>
-    </div>
-
-    <div id="list" class="list"></div>
-  </section>
-
-  <footer id="footer" style="display:none;">
-    <span id="classStats"></span>
-    <span id="syncInfo"></span>
-  </footer>
+  <div class="sync" id="syncStatus"></div>
 </main>
 
 <script>
@@ -637,186 +316,112 @@ const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSq3d_gGc
 
 let students = [];
 let assignmentCols = [];
-let lastUpdated = null;
 
-document.getElementById('today').textContent = new Date().toLocaleDateString('zh-TW', {
-  year:'numeric', month:'2-digit', day:'2-digit'
-});
+const updatedEl = document.getElementById('updated');
+const contentEl = document.getElementById('content');
+const searchWrap = document.getElementById('searchWrap');
+const searchBox = document.getElementById('searchBox');
+const searchResult = document.getElementById('searchResult');
+const clearBtn = document.getElementById('clearBtn');
+const syncStatus = document.getElementById('syncStatus');
 
-function isDone(v){
-  if(v===undefined || v===null) return false;
-  const s = String(v).trim().toLowerCase();
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[ch]));
+}
+
+function isDone(value){
+  if(value === undefined || value === null) return false;
+  const s = String(value).trim().toLowerCase();
   if(!s) return false;
   const doneSet = ['✅','✓','true','yes','y','是','有','1','对','✔','✔️'];
   const noSet = ['❌','✗','false','no','n','否','没有','0','x','✘','没交','缺'];
   if(doneSet.includes(s)) return true;
   if(noSet.includes(s)) return false;
-  if(s.includes('✅')||s.includes('✓')||s.includes('✔')) return true;
-  if(s.includes('❌')||s.includes('✗')||s.includes('✘')) return false;
+  if(s.includes('✅') || s.includes('✓') || s.includes('✔')) return true;
+  if(s.includes('❌') || s.includes('✗') || s.includes('✘')) return false;
   return true;
 }
 
 function parseRows(rows){
   if(rows.length < 2) throw new Error('资料不足');
-  const header = rows[0].map(h => (h||'').toString().trim());
-  if(header.length < 3) throw new Error('侦测不到作业栏位');
+  const header = rows[0].map(v => String(v ?? '').trim());
+  if(header.length < 3) throw new Error('找不到作业栏位');
 
-  assignmentCols = header.slice(2).filter(Boolean);
-  const list = [];
+  assignmentCols = header.slice(2);
+  const result = [];
 
-  for(let i=1;i<rows.length;i++){
-    const r = rows[i];
-    if(!r || r.every(c => !c || !String(c).trim())) continue;
+  for(let i = 1; i < rows.length; i++){
+    const row = rows[i];
+    if(!row || row.every(v => !String(v ?? '').trim())) continue;
 
-    const id = (r[0]||'').toString().trim();
-    const name = (r[1]||'').toString().trim();
+    const id = String(row[0] ?? '').trim();
+    const name = String(row[1] ?? '').trim();
     if(!id && !name) continue;
 
     const missing = [];
-    for(let c=0;c<assignmentCols.length;c++){
-      const val = r[2+c];
-      if(!isDone(val)) missing.push(assignmentCols[c]);
+    for(let c = 0; c < assignmentCols.length; c++){
+      if(!isDone(row[c + 2])) missing.push(assignmentCols[c]);
     }
 
-    list.push({id, name, missing, total:assignmentCols.length});
+    result.push({ id, name, missing, total: assignmentCols.length });
   }
-  return list;
+
+  return result;
 }
 
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, c => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-  }[c]));
+function formatUpdateTime(date){
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hh = String(date.getHours()).padStart(2,'0');
+  const mm = String(date.getMinutes()).padStart(2,'0');
+  return `${month}月${day}日 · ${hh}:${mm}`;
 }
 
-function loadFromSheet(){
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('syncError').classList.remove('show');
-  document.getElementById('content').style.display = 'none';
-  document.getElementById('footer').style.display = 'none';
-
-  fetch(SHEET_CSV_URL + '&cachebust=' + Date.now())
-    .then(res => {
-      if(!res.ok) throw new Error('网络请求失败 (' + res.status + ')');
-      return res.text();
-    })
-    .then(text => {
-      const parsed = Papa.parse(text.trim(), {delimiter:','});
-      students = parseRows(parsed.data);
-      lastUpdated = new Date();
-      renderAll();
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('content').style.display = 'block';
-      document.getElementById('footer').style.display = 'flex';
-    })
-    .catch(err => {
-      console.error(err);
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('syncError').classList.add('show');
-    });
-}
-
-function renderAll(){
-  renderSummary();
-  renderPublicList();
-  renderFooter();
-  renderSearch();
-}
-
-function renderSummary(){
-  const total = students.length;
-  const missingCount = students.filter(s => s.missing.length > 0).length;
-  const cleanCount = total - missingCount;
-  const completion = total ? Math.round((cleanCount / total) * 100) : 0;
-  const summary = document.getElementById('summary');
-  const num = document.getElementById('summaryNum');
-  const text = document.getElementById('summaryText');
-  const sub = document.getElementById('summarySub');
-  const chip = document.getElementById('overviewChip');
-
-  num.textContent = missingCount;
-  document.getElementById('progressBar').style.width = completion + '%';
-  document.getElementById('progressLeft').textContent = `${cleanCount} / ${total} 人已完成`;
-  document.getElementById('progressRight').textContent = `${completion}%`;
-
-  if(missingCount === 0){
-    summary.classList.add('all-clear');
-    text.textContent = '今天全部交齐';
-    sub.textContent = `全班 ${total} 人目前都没有欠交作业。`;
-    chip.textContent = '全部完成';
-  }else{
-    summary.classList.remove('all-clear');
-    text.textContent = '人有欠交作业';
-    sub.textContent = `已完成 ${cleanCount} 人，共 ${total} 人。欠交越多的学生会排在越前面。`;
-    chip.textContent = '公开名单';
-  }
-}
-
-function severityClass(count){
-  if(count >= 5) return 'sev-3';
-  if(count >= 3) return 'sev-2';
-  return 'sev-1';
+function missingCard(student){
+  return `
+    <article class="student">
+      <div class="student-head">
+        <div class="student-name">${escapeHtml(student.name)}</div>
+        <div class="count">欠 ${student.missing.length} 项</div>
+      </div>
+      <div class="student-id">${escapeHtml(student.id)}</div>
+      <div class="tags">
+        ${student.missing.map(item => `<span class="tag">${escapeHtml(item)}</span>`).join('')}
+      </div>
+    </article>`;
 }
 
 function renderPublicList(){
-  const listEl = document.getElementById('list');
-  const missingList = students
+  const missing = students
     .filter(s => s.missing.length > 0)
-    .sort((a,b) => b.missing.length - a.missing.length || a.name.localeCompare(b.name,'zh-Hans'));
+    .sort((a,b) => b.missing.length - a.missing.length || a.id.localeCompare(b.id));
 
-  document.getElementById('listCount').textContent = missingList.length
-    ? `共 ${missingList.length} 人 · 点击可看完成统计`
-    : '';
-
-  if(missingList.length === 0){
-    listEl.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-check">✓</div>
-        <div class="empty-title">目前没有欠交名单</div>
-        <div class="empty-sub">全班作业都已经交齐。</div>
-      </div>`;
+  if(missing.length === 0){
+    contentEl.innerHTML = `
+      <section class="all-clear">
+        <div class="all-clear-title">✓ 全部交齐</div>
+        <div class="all-clear-sub">目前没有学生欠交作业</div>
+      </section>`;
     return;
   }
 
-  listEl.innerHTML = missingList.map(s => {
-    const doneCount = Math.max(0, s.total - s.missing.length);
-    return `
-      <button class="student-card ${severityClass(s.missing.length)}" type="button" onclick="toggleDetail(this)" aria-expanded="false">
-        <div class="student-top">
-          <div>
-            <div class="student-name">${escapeHtml(s.name)}</div>
-            <div class="student-id">学号 ${escapeHtml(s.id)}</div>
-          </div>
-          <span class="count-badge">欠 ${s.missing.length} 项</span>
-        </div>
-        <div class="missing-label">未完成作业</div>
-        <div class="tags">
-          ${s.missing.map(m => `<span class="tag">${escapeHtml(m)}</span>`).join('')}
-        </div>
-        <div class="detail">
-          <strong>完成情况：</strong>已完成 ${doneCount} 项，欠交 ${s.missing.length} 项，共 ${s.total} 项。<br>
-          <span class="detail-hint">再次点击可收起。</span>
-        </div>
-      </button>`;
-  }).join('');
-}
-
-function toggleDetail(el){
-  const open = el.classList.toggle('open');
-  el.setAttribute('aria-expanded', open ? 'true' : 'false');
+  contentEl.innerHTML = `
+    <div class="summary">目前 <strong>${missing.length}</strong> 人欠交</div>
+    <section class="list">
+      ${missing.map(missingCard).join('')}
+    </section>`;
 }
 
 function renderSearch(){
-  const input = document.getElementById('searchBox');
-  const q = input.value.trim().toLowerCase();
-  const resultEl = document.getElementById('searchResult');
-  const clearBtn = document.getElementById('clearSearch');
-
-  clearBtn.classList.toggle('show', q.length > 0);
+  const q = searchBox.value.trim().toLowerCase();
+  clearBtn.classList.toggle('show', Boolean(q));
 
   if(!q){
-    resultEl.className = 'search-result';
-    resultEl.innerHTML = '';
+    searchResult.classList.remove('show');
+    searchResult.innerHTML = '';
+    contentEl.hidden = false;
     return;
   }
 
@@ -824,77 +429,72 @@ function renderSearch(){
     s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q)
   );
 
-  resultEl.className = 'search-result show';
+  contentEl.hidden = true;
+  searchResult.classList.add('show');
 
   if(matches.length === 0){
-    resultEl.innerHTML = `
-      <div class="result-card">
-        <div class="result-kicker">查询结果</div>
-        <div class="result-message">找不到符合「${escapeHtml(input.value.trim())}」的学生，请检查姓名或学号。</div>
-      </div>`;
+    searchResult.innerHTML = `<div class="no-match">没有找到符合的姓名或学号。</div>`;
     return;
   }
 
-  if(matches.length === 1){
-    resultEl.innerHTML = renderSearchStudent(matches[0]);
-    return;
-  }
-
-  const exact = matches.find(s => s.id.toLowerCase() === q || s.name.toLowerCase() === q);
-  if(exact){
-    resultEl.innerHTML = renderSearchStudent(exact);
-    return;
-  }
-
-  resultEl.innerHTML = `
-    <div class="result-card">
-      <div class="result-kicker">找到 ${matches.length} 位学生</div>
-      <div class="result-message">请继续输入更完整的姓名或学号。</div>
-      <div class="tags" style="margin-top:11px;">
-        ${matches.slice(0,8).map(s => `<span class="tag" style="background:var(--paper-2);color:var(--ink);border-color:var(--line);">${escapeHtml(s.name)} · ${escapeHtml(s.id)}</span>`).join('')}
-      </div>
-    </div>`;
-}
-
-function renderSearchStudent(s){
-  const clean = s.missing.length === 0;
-  const doneCount = Math.max(0, s.total - s.missing.length);
-  return `
-    <div class="result-card ${clean ? 'clean' : 'missing'}">
-      <div class="result-kicker">个人查询结果</div>
-      <div class="result-head">
-        <div>
-          <div class="result-name">${escapeHtml(s.name)}</div>
-          <div class="result-id">学号 ${escapeHtml(s.id)}</div>
+  searchResult.innerHTML = matches.map(s => {
+    const hasMissing = s.missing.length > 0;
+    return `
+      <section class="student" style="padding-top:0">
+        <div class="student-head">
+          <div>
+            <div class="result-name">${escapeHtml(s.name)}</div>
+            <div class="result-id">${escapeHtml(s.id)}</div>
+          </div>
+          <div class="result-status ${hasMissing ? 'missing' : 'clean'}">
+            ${hasMissing ? `欠 ${s.missing.length} 项` : '✓ 全部完成'}
+          </div>
         </div>
-        <div class="result-status">${clean ? '✓ 全部完成' : `欠 ${s.missing.length} 项`}</div>
-      </div>
-      ${clean ? `
-        <div class="result-message">目前没有欠交作业。已完成 ${s.total} / ${s.total} 项。</div>
-      ` : `
-        <div class="result-message">你还有以下作业未完成：</div>
-        <div class="tags">${s.missing.map(m => `<span class="tag">${escapeHtml(m)}</span>`).join('')}</div>
-        <div class="result-message">已完成 ${doneCount} 项，欠交 ${s.missing.length} 项，共 ${s.total} 项。</div>
-      `}
-    </div>`;
+        ${hasMissing ? `<div class="tags result-tags">${s.missing.map(item => `<span class="tag">${escapeHtml(item)}</span>`).join('')}</div>` : ''}
+      </section>`;
+  }).join('');
 }
 
-function clearSearch(){
-  const input = document.getElementById('searchBox');
-  input.value = '';
+function loadFromSheet(){
+  updatedEl.textContent = '读取中…';
+  syncStatus.textContent = '';
+  searchWrap.hidden = true;
+  searchResult.classList.remove('show');
+  contentEl.hidden = false;
+  contentEl.innerHTML = `<div class="loading">正在读取最新资料…</div>`;
+
+  fetch(SHEET_CSV_URL + '&cachebust=' + Date.now())
+    .then(res => {
+      if(!res.ok) throw new Error(`网络错误 ${res.status}`);
+      return res.text();
+    })
+    .then(text => {
+      const parsed = Papa.parse(text.trim(), {delimiter: ','});
+      students = parseRows(parsed.data);
+      const now = new Date();
+      updatedEl.textContent = formatUpdateTime(now);
+      syncStatus.textContent = `资料已更新 · ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      searchWrap.hidden = false;
+      renderPublicList();
+      renderSearch();
+    })
+    .catch(err => {
+      updatedEl.textContent = '更新失败';
+      contentEl.innerHTML = `
+        <div class="error">
+          暂时无法读取最新资料。
+          <br><button class="retry" type="button" onclick="loadFromSheet()">重新读取</button>
+        </div>`;
+      console.error(err);
+    });
+}
+
+searchBox.addEventListener('input', renderSearch);
+clearBtn.addEventListener('click', () => {
+  searchBox.value = '';
+  searchBox.focus();
   renderSearch();
-  input.focus();
-}
-
-function renderFooter(){
-  const total = students.length;
-  const missingCount = students.filter(s => s.missing.length > 0).length;
-  const cleanCount = total - missingCount;
-  document.getElementById('classStats').textContent = `${total} 位学生 · ${cleanCount} 人已全部完成`;
-
-  const time = lastUpdated ? lastUpdated.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';
-  document.getElementById('syncInfo').innerHTML = `<span class="sync-ok">● 资料已同步</span>${time ? ` · ${time}` : ''}`;
-}
+});
 
 window.addEventListener('DOMContentLoaded', loadFromSheet);
 </script>
